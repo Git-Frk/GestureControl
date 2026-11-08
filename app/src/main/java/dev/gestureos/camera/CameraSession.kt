@@ -49,6 +49,7 @@ data class TrackingFrame(
     val pipelineMs: Float,
     val processedFps: Float,
     val throttleSkips: Long,
+    val observedAtMs: Long,
 )
 
 /** A disposable foreground session: one worker, at most one inference, no queued camera backlog. */
@@ -180,7 +181,7 @@ class CameraSession(
             }
             val frame = TrackingFrame(normalized, sourceTransform, upright.width, upright.height, raw,
                 recognition, result.inferenceMs, (SystemClock.elapsedRealtimeNanos() - start) / 1_000_000f,
-                processedFps, throttleSkips)
+                processedFps, throttleSkips, now)
             if (recognition.newlyConfirmed) Log.d(TAG, "Confirmed ${recognition.gesture}")
             main.execute { if (!closed.get() && !failed.get()) onFrame(frame) }
         } catch (error: Exception) {

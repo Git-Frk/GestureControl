@@ -5,12 +5,15 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.display.DisplayManager
+import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.text.InputType
+import android.util.Log
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -32,6 +35,13 @@ import dev.gestureos.databinding.ActivityMainBinding
 import dev.gestureos.recognition.Gesture
 import dev.gestureos.recognition.RecognitionConfig
 import dev.gestureos.recognition.RecognitionState
+import dev.gestureos.volume.AndroidMediaVolumeDevice
+import dev.gestureos.volume.MediaVolumeController
+import dev.gestureos.volume.VolumeControlConfig
+import dev.gestureos.volume.VolumeFeedback
+import dev.gestureos.volume.VolumeOutcome
+import dev.gestureos.volume.VolumeReading
+import dev.gestureos.volume.VolumeRestriction
 
 @androidx.annotation.OptIn(TransformExperimental::class)
 class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
@@ -40,11 +50,21 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
     private var resumed = false
     private var wantsCamera = true
     private var config = RecognitionConfig()
+    private var volumeConfig = VolumeControlConfig()
+    private lateinit var volumeController: MediaVolumeController
+    private val volumeDevice by lazy { AndroidMediaVolumeDevice(this) }
     private var lastFrameAt = 0L
     private var displayRotation = -1
     private val handler = Handler(Looper.getMainLooper())
     private val preferences by lazy { getSharedPreferences("recognition", MODE_PRIVATE) }
     private val displays by lazy { getSystemService(DisplayManager::class.java) }
+    private val volumeRefresh = object : Runnable {
+        override fun run() {
+            if (!resumed) return
+            showVolume(volumeController.read())
+            handler.postDelayed(this, 1000)
+        }
+    }
     private val permissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted && wantsCamera) startCamera()
         else binding.cameraStatus.setText(R.string.permission_denied)
@@ -65,6 +85,9 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         config = loadConfig()
+        volumeConfig = loadVolumeConfig()
+        volumeController = MediaVolumeController(volumeDevice, volumeConfig)
+        volumeControlStream = AudioManager.STREAM_MUSIC
         wantsCamera = savedInstanceState?.getBoolean("wantsCamera") ?: true
         binding.preview.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         binding.preview.scaleType = PreviewView.ScaleType.FIT_CENTER
@@ -87,11 +110,18 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$packageName".toUri()))
         }
         binding.tune.setOnClickListener { showTuning() }
+        binding.volumeEnabled.isChecked = false
+        binding.volumeEnabled.isEnabled = false
+        binding.volumeEnabled.setOnCheckedChangeListener { _, enabled ->
+            volumeController.setEnabled(enabled, SystemClock.uptimeMillis())
+            binding.volumeAction.setText(if (enabled) R.string.volume_ready else R.string.volume_disabled)
+        }
     }
 
     override fun onResume() {
         super.onResume()
         resumed = true
+        handler.post(volumeRefresh)
         displays.registerDisplayListener(this, handler)
         if (wantsCamera && hasCameraPermission()) startCamera()
         else if (!hasCameraPermission()) binding.cameraStatus.setText(R.string.permission_needed)
@@ -99,6 +129,7 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
 
     override fun onPause() {
         resumed = false
+        handler.removeCallbacks(volumeRefresh)
         displays.unregisterDisplayListener(this)
         stopCamera()
         super.onPause()
@@ -123,7 +154,10 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
             lastFrameAt = SystemClock.uptimeMillis()
             session = CameraSession(this, this, binding.preview, config,
                 onFrame = ::showFrame,
-                onReady = { binding.cameraStatus.setText(R.string.camera_waiting) },
+                onReady = {
+                    binding.cameraStatus.setText(R.string.camera_waiting)
+                    binding.volumeEnabled.isEnabled = true
+                },
                 onError = { message ->
                     stopCamera()
                     binding.cameraStatus.text = getString(R.string.camera_error, message)
@@ -134,6 +168,8 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
     }
 
     private fun stopCamera() {
+        disarmVolume()
+        binding.volumeEnabled.isEnabled = false
         handler.removeCallbacks(watchdog)
         session?.close()
         session = null
@@ -144,6 +180,7 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
     }
 
     private fun clearTracking() {
+        volumeController.cancelHold()
         binding.overlay.clear()
         binding.gesture.setText(R.string.gesture_no_hand)
         binding.recognitionState.setText(R.string.state_no_hand)
@@ -178,6 +215,49 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
         binding.diagnostics.text = getString(R.string.diagnostics, frame.processedFps, frame.inferenceMs,
             frame.pipelineMs, frame.width, frame.height, if (frame.landmarks.isEmpty()) 0 else 1,
             config.maxFps, frame.throttleSkips, config.holdMs, config.cooldownMs, config.smoothingAlpha)
+        if (resumed && session != null) {
+            volumeController.onFrame(recognition, frame.rawGesture, frame.observedAtMs, SystemClock.uptimeMillis())?.let(::showVolumeFeedback)
+        }
+    }
+
+    private fun disarmVolume() {
+        volumeController.setEnabled(false, SystemClock.uptimeMillis())
+        binding.volumeEnabled.isChecked = false
+        binding.volumeAction.setText(R.string.volume_disabled)
+    }
+
+    private fun showVolume(reading: VolumeReading) {
+        val level = reading.level
+        val levelText = level?.let {
+            getString(if (it.muted) R.string.volume_level_muted else R.string.volume_level, it.current, it.maximum)
+        }
+        binding.mediaVolume.text = listOfNotNull(levelText, reading.restriction?.let(::restrictionText))
+            .joinToString("\n").ifEmpty { getString(R.string.volume_unavailable) }
+        binding.volumeProgress.isIndeterminate = false
+        binding.volumeProgress.min = level?.minimum ?: 0
+        binding.volumeProgress.max = level?.maximum ?: 1
+        binding.volumeProgress.progress = level?.current ?: 0
+    }
+
+    private fun restrictionText(restriction: VolumeRestriction?) = getString(when (restriction) {
+        VolumeRestriction.FIXED -> R.string.volume_fixed
+        VolumeRestriction.POLICY -> R.string.volume_policy
+        VolumeRestriction.DENIED -> R.string.volume_denied
+        else -> R.string.volume_unavailable
+    })
+
+    private fun showVolumeFeedback(feedback: VolumeFeedback) {
+        showVolume(feedback.reading)
+        val level = feedback.reading.level
+        binding.volumeAction.text = when {
+            feedback.outcome == VolumeOutcome.BLOCKED -> restrictionText(feedback.reading.restriction)
+            feedback.outcome == VolumeOutcome.MAXIMUM || (feedback.outcome == VolumeOutcome.RAISED && level?.current == level?.maximum) -> getString(R.string.volume_maximum)
+            feedback.outcome == VolumeOutcome.MINIMUM || (feedback.outcome == VolumeOutcome.LOWERED && level?.current == level?.minimum) -> getString(R.string.volume_minimum)
+            feedback.outcome == VolumeOutcome.RAISED -> getString(if (feedback.repeated) R.string.volume_raised_repeat else R.string.volume_raised)
+            feedback.outcome == VolumeOutcome.LOWERED -> getString(if (feedback.repeated) R.string.volume_lowered_repeat else R.string.volume_lowered)
+            else -> getString(R.string.volume_unchanged)
+        }
+        Log.i("GestureOSVolume", "${feedback.outcome}; repeat=${feedback.repeated}; level=${level?.current}/${level?.maximum}; restriction=${feedback.reading.restriction}")
     }
 
     private fun gestureName(gesture: Gesture) = getString(when (gesture) {
@@ -199,20 +279,34 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
         )
     }.getOrDefault(RecognitionConfig())
 
-    private fun applyConfig(updated: RecognitionConfig) {
+    private fun loadVolumeConfig() = runCatching {
+        VolumeControlConfig(
+            repeatEnabled = preferences.getBoolean("volumeRepeat", true),
+            repeatDelayMs = preferences.getLong("volumeDelayMs", 1200),
+            repeatIntervalMs = preferences.getLong("volumeIntervalMs", 700),
+        )
+    }.getOrDefault(VolumeControlConfig())
+
+    private fun applyConfig(updated: RecognitionConfig, updatedVolume: VolumeControlConfig) {
+        stopCamera()
         config = updated
+        volumeConfig = updatedVolume
+        volumeController = MediaVolumeController(volumeDevice, volumeConfig)
         preferences.edit {
             putLong("holdMs", config.holdMs)
             putLong("cooldownMs", config.cooldownMs)
             putFloat("alpha", config.smoothingAlpha)
             putInt("fps", config.maxFps)
             putFloat("angle", config.extendedAngle)
+            putBoolean("volumeRepeat", volumeConfig.repeatEnabled)
+            putLong("volumeDelayMs", volumeConfig.repeatDelayMs)
+            putLong("volumeIntervalMs", volumeConfig.repeatIntervalMs)
         }
-        stopCamera()
         if (wantsCamera) startCamera()
     }
 
     private fun showTuning() {
+        disarmVolume()
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             val padding = (24 * resources.displayMetrics.density).toInt()
@@ -236,20 +330,31 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
         val alpha = field(R.string.smoothing_label, config.smoothingAlpha.toString())
         val fps = field(R.string.fps_label, config.maxFps.toString())
         val angle = field(R.string.angle_label, config.extendedAngle.toString())
+        content.addView(TextView(this).apply { setText(R.string.volume_tuning) })
+        val repeatEnabled = CheckBox(this).apply {
+            setText(R.string.volume_repeat_enabled)
+            isChecked = volumeConfig.repeatEnabled
+        }
+        content.addView(repeatEnabled)
+        val repeatDelay = field(R.string.volume_delay_label, volumeConfig.repeatDelayMs.toString())
+        val repeatInterval = field(R.string.volume_interval_label, volumeConfig.repeatIntervalMs.toString())
         val dialog = AlertDialog.Builder(this).setTitle(R.string.tuning_title)
             .setView(ScrollView(this).apply { addView(content) })
             .setNegativeButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.reset_defaults) { _, _ -> applyConfig(RecognitionConfig()) }
+            .setNeutralButton(R.string.reset_defaults) { _, _ -> applyConfig(RecognitionConfig(), VolumeControlConfig()) }
             .setPositiveButton(R.string.apply, null).create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val updated = runCatching {
-                    config.copy(holdMs = hold.text.toString().toLong(), cooldownMs = cooldown.text.toString().toLong(),
+                    val recognition = config.copy(holdMs = hold.text.toString().toLong(), cooldownMs = cooldown.text.toString().toLong(),
                         smoothingAlpha = alpha.text.toString().replace(',', '.').toFloat(), maxFps = fps.text.toString().toInt(),
                         extendedAngle = angle.text.toString().replace(',', '.').toFloat())
+                    val volume = volumeConfig.copy(repeatEnabled = repeatEnabled.isChecked,
+                        repeatDelayMs = repeatDelay.text.toString().toLong(), repeatIntervalMs = repeatInterval.text.toString().toLong())
+                    recognition to volume
                 }.getOrNull()
                 if (updated == null) hold.error = getString(R.string.invalid_settings)
-                else { applyConfig(updated); dialog.dismiss() }
+                else { applyConfig(updated.first, updated.second); dialog.dismiss() }
             }
         }
         dialog.show()

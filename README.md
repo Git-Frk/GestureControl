@@ -2,8 +2,9 @@
 
 Native Kotlin prototype for a wall-mounted **Nokia T20 running Android 13 (API 33)**.
 Milestone 1 provides a mirrored front-camera preview, 21 hand landmarks, and local
-recognition of open palm, closed fist, thumbs-up, and thumbs-down. It only displays
-recognition feedback; it does not control Android or other apps.
+recognition of open palm, closed fist, thumbs-up, and thumbs-down. **Milestone 2A**
+adds foreground gesture control of media volume. No accessibility, floating
+overlay, background camera service, or other Android actions are implemented.
 
 ## Command-line setup on macOS
 
@@ -63,7 +64,7 @@ adb -s SERIAL shell getprop ro.build.version.sdk
 adb -s SERIAL shell getprop ro.product.cpu.abilist
 adb -s SERIAL install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s SERIAL shell am start -n dev.gestureos/.MainActivity
-adb -s SERIAL logcat -s GestureOS CameraX AndroidRuntime
+adb -s SERIAL logcat -s GestureOS GestureOSVolume CameraX AndroidRuntime
 ```
 
 Tap **Start camera**, allow camera access **while using the app**, and ensure Android's
@@ -71,7 +72,9 @@ Camera access privacy toggle is on. If denied permanently, use **App permissions
 to allow Camera, then return. **Stop camera** releases capture and inference. The
 app also releases them when paused, locked, or backgrounded, and resumes when you
 return if you had left tracking enabled. No accessibility, overlay, microphone,
-storage, notification, or foreground-service permission is requested.
+storage, notification, or foreground-service permission is requested. Media volume
+uses the normal, install-time `MODIFY_AUDIO_SETTINGS` permission; there is no new
+runtime permission prompt or request for Do Not Disturb access.
 
 For wireless debugging, if offered by the tablet's Android build, put the Mac and
 tablet on the same trusted Wi-Fi network. In **Developer options → Wireless debugging**,
@@ -111,10 +114,47 @@ Use **Tune recognition** for persisted hold/cooldown durations, smoothing alpha,
 inference cap, and straight-finger threshold. Other geometry and MediaPipe detection,
 presence, and tracking thresholds are in `RecognitionConfig.kt`.
 
+## Gesture-controlled media volume (Milestone 2A)
+
+Start the camera, then turn on **Enable gesture volume**. The switch starts off
+and switches off when tracking stops, the app pauses, rotation restarts the camera,
+or tuning opens. After enabling, release any existing thumb pose and confirm a new
+one. Open palm and closed fist remain recognition-only gestures.
+
+- Confirmed thumbs-up raises `STREAM_MUSIC` by one Android volume step; thumbs-down
+  lowers it. This changes the tablet's media volume, including media playing in
+  another app while GestureOS is visible. Ring, notification, alarm, and call streams
+  are not targeted; the app does not request audio focus or start playback.
+- Holding the same confirmed thumb repeats after **1200 ms**, then at most once
+  every **700 ms**. Tune recognition includes a repeat enable checkbox and persisted
+  first-delay (600–5000 ms) / interval (400–3000 ms) settings.
+- A **400 ms** global minimum interval and **1500 ms** direction reversal cooldown
+  prevent rapid adjustments. The opposite confirmed pose must remain held during
+  its cooldown. These guards and frame freshness thresholds are in `VolumeControlConfig.kt`.
+- Every action requires a fresh frame with agreement between raw and confirmed
+  recognition. Unknown poses, unconfirmed poses, raw disagreement, or observation
+  gaps over 350 ms cancel the hold. Frames older than 350 ms are rejected. Re-arming
+  needs a new recognition confirmation: release the thumb if the label remains
+  confirmed after an interruption. No timer generates volume actions, and no missed
+  repeats are replayed after a stall.
+- The volume number/bar is read back from Android; it refreshes every second while
+  the app is resumed, including changes made with hardware buttons. Feedback reports
+  increases, decreases, repeats, minimum/maximum, or rejected/unchanged requests.
+- Reaching a limit, fixed-volume output, device policy, a security exception, or an
+  ignored adjustment stops further attempts for that hold. Release and confirm again
+  to retry. Android's DND and safe-listening/output restrictions are respected; the app
+  does not bypass them or request broader access. Behavior varies by audio route and
+  must be checked on the T20. See [AudioManager](https://developer.android.com/reference/android/media/AudioManager#adjustStreamVolume(int,%20int,%20int)).
+
+The app stores repeat settings, not the enabled switch state. An app pause/resume or
+Stop/Start therefore requires re-enabling volume control. In-app feedback is used;
+there is no floating system-wide volume overlay.
+
 ## Implementation and verification limits
 
-Verified on macOS ARM64 with the local Conda JDK: debug APK compilation, 23 unit
-tests in each of the debug and release configurations, and Android lint with zero
+Verified on macOS ARM64 with the local Conda JDK: Milestone 2A debug APK compilation,
+51 unit tests in each of the debug and release configurations (23 existing recognition
+tests and 28 volume tests), and Android lint with zero
 issues. APK signature, ZIP alignment, bundled-model checksum, and absence of network
 permissions were checked.
 
@@ -133,7 +173,10 @@ a sustained performance or accuracy benchmark.
 - `tracking/`: bundled MediaPipe model, one hand, CPU delegate, synchronous VIDEO
   mode on the worker so tracking is retained without async image ownership races.
 - `recognition/`: pure Kotlin geometry, aspect-corrected landmarks, smoothing,
-  and time-based confirmation/cooldown state. No Android actions are implemented.
+  and time-based confirmation/cooldown state, independent of Android actions.
+- `volume/`: pure Kotlin repeat/reversal state machine and media-volume controller,
+  plus an `AudioManager` adapter. Unit tests use a fake audio device to exercise limits
+  and restrictions without changing the development machine's audio.
 - `ui/`: preview overlay uses CameraX transforms for crop, rotation, fit, and front
   mirroring. Frames are not mirrored before classification. Diagnostics and lifecycle
   orchestration live in `MainActivity`.
@@ -141,31 +184,41 @@ a sustained performance or accuracy benchmark.
 Automated tests use synthetic landmarks and deterministic timestamps. They cover
 the four rules, scale/mirroring, modest noise, ambiguous/invalid input, aspect ratio,
 tracking loss, hold/cooldown, and smoothing. **They do not measure real-world accuracy.**
-The GitHub workflow must be exercised after pushing. Detailed overlay alignment,
-permission recovery, repeated accuracy measurements, lifecycle recovery, and
-sustained thermal performance still need the following tablet checks:
+The user has subsequently confirmed Milestone 1 successfully tested on the T20.
+Milestone 2A's real AudioManager integration, routing, and gesture-driven volume
+changes have **not yet been verified on the tablet**. The GitHub workflow also
+remains unverified remotely. Run these Milestone 2A checks after installing the new APK:
 
-1. Deny camera permission, then grant it again. Check both permission retry and
-   returning from App permissions; initial permission approval has been exercised.
-2. Check front preview and all 21 landmarks, including fingertip alignment at the
-   center and edges. Rotate portrait, landscape, and 180°; check fit/letterboxing.
-3. At **60, 75, and 90 cm**, test each of the four gestures with each hand. Hold ten
-   times per gesture; record correct confirmations, misses, false confirmations,
-   FPS and processing times. Try both bright and dim room lighting.
-4. Try sideways thumbs, pointing, relaxed hands, rapid pose changes, partial hands,
-   two hands, and no hand. Confirm uncertainty and hand loss clear stale feedback.
-5. Change tuning, restart, and verify persistence. Stop/start repeatedly; background,
-   return, lock/unlock, rotate, and toggle camera privacy. Close other camera apps
-   if capture fails; ensure Start camera can recover without stale landmarks.
-6. Run for at least 15 minutes while plugged in; compare FPS/inference at the start
-   and end and assess warmth. Check `adb -s SERIAL shell dumpsys thermalservice`
-   and `adb -s SERIAL shell dumpsys meminfo dev.gestureos` if available.
-7. Turn Wi-Fi off after installation and verify local recognition still works.
+1. Start at a comfortable mid-range media volume. If desired, play familiar media
+   in another app that supports background playback, then return to GestureOS.
+   Start the camera and confirm volume gestures are initially off. Thumbs must not
+   alter volume until the switch is enabled.
+2. Enable gesture volume, release the hand, and at **60–90 cm** confirm thumbs-up,
+   then release and confirm thumbs-down. Check one media step in each direction,
+   the displayed level/action, and the audible change if media is playing.
+3. Hold thumbs-up: check one initial step, a roughly 1.2-second pause, then roughly
+   0.7-second steps. Remove the hand or change to palm/fist: changes must stop. Test
+   a brief/unconfirmed thumb and rapid direction changes; neither should cause a burst.
+4. In Tune recognition, disable repeats. Re-enable volume afterward and check a
+   long hold produces only one step. Change repeat timing, restart the app, and check
+   the timings persist while volume control remains off until enabled.
+5. With playback stopped, test minimum and maximum. Verify the limit feedback and
+   no repeated adjustment attempts while the same thumb stays held. Release and
+   confirm the opposite thumb to move away from the limit.
+6. Disable the switch, Stop/Start, background/return, lock/unlock, rotate, and open/
+   cancel tuning. Check adjustments stop, the switch is off, and re-enabling requires
+   a fresh confirmation. Check camera/landmark alignment and recognition diagnostics
+   still work in portrait and landscape. Scroll the lower panel for all controls.
+7. Press the tablet's volume buttons: the displayed media level should update within
+   about one second. Test each output you use (speaker, wired, Bluetooth); check
+   muted/fixed-volume behavior, DND, and any device-policy/safe-volume restrictions.
+   Restrictions should show feedback and never crash or repeatedly retry while held.
+8. Run for 15 minutes and compare processed FPS/inference timing with Milestone 1.
+   Capture `GestureOSVolume` logs with the ADB command above when reporting issues.
 
-Acceptance of the physical-device criteria depends on these checks. True screen-off
-wake, simulated standby, system-wide input, overlays, and background tracking are
-outside Milestone 1 and are not implemented. Next step: run the above checks on the
-T20, then calibrate thresholds and the processing cap from the measurements.
+True screen-off wake, simulated standby, system-wide input, overlays, and background
+tracking remain outside the implemented milestones. Next step: verify Milestone 2A
+on the T20 before adding more actions.
 
 The supplied project brief is ignored as local input. SDK paths, signing files,
 logs, caches, and build outputs are excluded from Git. Only this README is project

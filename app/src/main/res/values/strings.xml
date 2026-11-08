@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">GestureOS</string>
-    <string name="subtitle">HAND TRACKING · MILESTONE 1</string>
+    <string name="subtitle">GESTURE MEDIA VOLUME · MILESTONE 2A</string>
     <string name="instructions">Show one hand, 60–90 cm from the front camera. Try an open palm, a closed fist, or a vertical thumbs-up / thumbs-down. Hold each pose until confirmed.</string>
     <string name="privacy">Camera frames stay on this tablet. Tracking stops when you leave this screen.</string>
     <string name="start">Start camera</string>
@@ -24,13 +24,13 @@
     <string name="state_no_hand">SEARCHING · show one hand</string>
     <string name="state_unknown">UNRECOGNISED · keep the whole hand visible</string>
     <string name="state_holding">HOLDING · %1$d%% of hold duration</string>
-    <string name="state_confirmed">CONFIRMED · in-app feedback only</string>
+    <string name="state_confirmed">CONFIRMED</string>
     <string name="state_cooldown">COOLDOWN · keep holding</string>
     <string name="raw_gesture">Raw detection: %1$s</string>
     <string name="diagnostics_idle">Waiting for frames. No gesture confidence score is used.</string>
     <string name="diagnostics">%1$.1f processed FPS · %2$.1f ms inference · %3$.1f ms pipeline\nInput: %4$d × %5$d · hands: %6$d · CPU · cap: %7$d FPS\nThrottle skips: %8$d · hold: %9$d ms · cooldown: %10$d ms · smoothing: %11$.2f</string>
-    <string name="tuning_title">Recognition tuning</string>
-    <string name="tuning_help">Changes restart tracking. These are geometric thresholds, not gesture confidence scores.</string>
+    <string name="tuning_title">Recognition and volume tuning</string>
+    <string name="tuning_help">Changes restart tracking. Volume gestures are switched off while tuning. Recognition thresholds are geometric rules, not confidence scores.</string>
     <string name="hold_label">Hold duration (100–2000 ms)</string>
     <string name="cooldown_label">Cooldown (0–3000 ms)</string>
     <string name="smoothing_label">Smoothing alpha (0.1–1.0; 1 = off)</string>
@@ -39,4 +39,24 @@
     <string name="invalid_settings">Enter values within the displayed ranges.</string>
     <string name="apply">Apply</string>
     <string name="reset_defaults">Reset defaults</string>
+    <string name="volume_enable">Enable gesture volume</string>
+    <string name="volume_level">Media volume: %1$d / %2$d</string>
+    <string name="volume_level_muted">Media volume: %1$d / %2$d · muted</string>
+    <string name="volume_disabled">Volume gestures off. Camera and recognition still work.</string>
+    <string name="volume_ready">Release any held thumb, then confirm thumbs-up or thumbs-down. Keep holding to repeat if enabled.</string>
+    <string name="volume_raised">Last action: media volume increased.</string>
+    <string name="volume_lowered">Last action: media volume decreased.</string>
+    <string name="volume_raised_repeat">Last action: media volume increased (held repeat).</string>
+    <string name="volume_lowered_repeat">Last action: media volume decreased (held repeat).</string>
+    <string name="volume_minimum">Minimum media volume reached. Release the thumb before another adjustment.</string>
+    <string name="volume_maximum">Maximum media volume reached. Release the thumb before another adjustment.</string>
+    <string name="volume_unchanged">Android reported no change. Release the thumb and check system volume or output-device restrictions.</string>
+    <string name="volume_fixed">This output uses fixed volume. Gesture adjustments are unavailable.</string>
+    <string name="volume_policy">Volume changes are restricted by device policy.</string>
+    <string name="volume_denied">Android audio policy denied the adjustment. Check system sound / Do Not Disturb settings; release the thumb before retrying.</string>
+    <string name="volume_unavailable">Media volume is unavailable.</string>
+    <string name="volume_tuning">Held volume gestures</string>
+    <string name="volume_repeat_enabled">Repeat adjustments while held</string>
+    <string name="volume_delay_label">First repeat delay (600–5000 ms)</string>
+    <string name="volume_interval_label">Repeat interval (400–3000 ms)</string>
 </resources>

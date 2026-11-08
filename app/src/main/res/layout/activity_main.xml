@@ -14,8 +14,9 @@
             android:layout_width="match_parent" android:layout_height="match_parent"
             android:importantForAccessibility="no" />
     </FrameLayout>
-    <ScrollView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:fillViewport="true">
+    <!-- Stable preview bounds: changing feedback text must not resize the camera viewport. -->
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:fillViewport="true">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical" android:paddingTop="8dp">
             <TextView android:id="@+id/cameraStatus" android:layout_width="match_parent"
@@ -40,6 +41,17 @@
                 <Button android:id="@+id/appSettings" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
                     android:layout_weight="1" android:text="@string/app_settings" />
             </LinearLayout>
+            <Switch android:id="@+id/volumeEnabled" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:minHeight="48dp"
+                android:text="@string/volume_enable" android:textColor="#F1F7F6"
+                android:textSize="14sp" android:saveEnabled="false" />
+            <TextView android:id="@+id/mediaVolume" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/volume_unavailable" android:textColor="#75E4BD" android:textSize="16sp" />
+            <ProgressBar android:id="@+id/volumeProgress" style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="8dp" />
+            <TextView android:id="@+id/volumeAction" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/volume_disabled" android:textColor="#B4C5CF" android:textSize="12sp"
+                android:accessibilityLiveRegion="polite" />
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:text="@string/instructions" android:textColor="#F1F7F6" android:textSize="13sp" />
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
