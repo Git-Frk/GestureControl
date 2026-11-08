@@ -116,8 +116,17 @@ presence, and tracking thresholds are in `RecognitionConfig.kt`.
 Verified on macOS ARM64 with the local Conda JDK: debug APK compilation, 23 unit
 tests in each of the debug and release configurations, and Android lint with zero
 issues. APK signature, ZIP alignment, bundled-model checksum, and absence of network
-permissions were checked. ADB reported no attached device. No Android runtime or
-Nokia T20 behavior is claimed as tested.
+permissions were checked.
+
+Initial Nokia T20 test, **8 November 2026**: ADB verified Android 13 / API 33 and
+ARM64 support; installation and cold launch succeeded. The front-camera preview
+and native inference ran on the tablet, and the user confirmed visible hand
+landmarks. In the guided test at approximately 60–90 cm, the user reported that
+all four gestures showed the correct label and reached CONFIRMED. Logcat also
+captured open-palm, thumbs-up, and thumbs-down confirmations; the fist result is
+user-reported. One no-hand snapshot showed 10.0 processed FPS, 90.7 ms inference,
+and 95.8 ms total pipeline time at 640×480. These are initial observations, not
+a sustained performance or accuracy benchmark.
 
 - `camera/`: lifecycle-bound CameraX, shared preview/analysis viewport, preferred
   640×480 input, keep-latest backpressure, single worker, default 12 FPS cap.
@@ -132,12 +141,12 @@ Nokia T20 behavior is claimed as tested.
 Automated tests use synthetic landmarks and deterministic timestamps. They cover
 the four rules, scale/mirroring, modest noise, ambiguous/invalid input, aspect ratio,
 tracking loss, hold/cooldown, and smoothing. **They do not measure real-world accuracy.**
-The GitHub workflow must be exercised after pushing. Physical camera behavior,
-overlay alignment, native inference, permission flows, and thermal performance
-remain unverified until the following tablet checks are completed:
+The GitHub workflow must be exercised after pushing. Detailed overlay alignment,
+permission recovery, repeated accuracy measurements, lifecycle recovery, and
+sustained thermal performance still need the following tablet checks:
 
-1. Confirm model/API with ADB, install, deny permission once, then grant it. Check
-   both permission retry and returning from App permissions.
+1. Deny camera permission, then grant it again. Check both permission retry and
+   returning from App permissions; initial permission approval has been exercised.
 2. Check front preview and all 21 landmarks, including fingertip alignment at the
    center and edges. Rotate portrait, landscape, and 180°; check fit/letterboxing.
 3. At **60, 75, and 90 cm**, test each of the four gestures with each hand. Hold ten
