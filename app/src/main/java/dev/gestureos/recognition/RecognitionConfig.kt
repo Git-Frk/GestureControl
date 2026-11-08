@@ -8,6 +8,8 @@ data class RecognitionConfig(
     val tipReachRatio: Float = 1.08f,
     val thumbReachRatio: Float = 0.65f,
     val verticalThumbRatio: Float = 0.75f,
+    // Visible thumb-tip clearance beyond the curled fingers, in palm-width units.
+    val thumbClearanceRatio: Float = 0.2f,
     val holdMs: Long = 400,
     val cooldownMs: Long = 600,
     val maxObservationGapMs: Long = 350,
@@ -23,6 +25,7 @@ data class RecognitionConfig(
         require(thumbAngle in 120f..175f)
         require(tipReachRatio in 1f..2f && thumbReachRatio in 0.2f..2f)
         require(verticalThumbRatio in 0.5f..1f)
+        require(thumbClearanceRatio in 0.1f..1f)
         require(holdMs in 100..2000 && cooldownMs in 0..3000)
         require(maxObservationGapMs in 100..2000)
         require(smoothingAlpha in 0.1f..1f && maxFps in 5..30)

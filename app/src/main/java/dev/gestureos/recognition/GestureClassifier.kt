@@ -22,22 +22,35 @@ class GestureClassifier(private val config: RecognitionConfig = RecognitionConfi
                 hand[mcp + 3].distance(hand[0]) > hand[mcp + 1].distance(hand[0]) * config.tipReachRatio
         }
         val folded = FINGERS.map { mcp ->
+            // Either finger joint can curl. On the T20 a tucked index/middle finger may
+            // have a nearly straight PIP but a sharply bent DIP, especially in thumbs-down.
             jointAngle(hand[mcp], hand[mcp + 1], hand[mcp + 2]) <= config.foldedAngle ||
+                jointAngle(hand[mcp + 1], hand[mcp + 2], hand[mcp + 3]) <= config.foldedAngle ||
                 hand[mcp + 3].distance(hand[0]) < hand[mcp + 1].distance(hand[0]) * 0.95f
         }
-        val thumbExtended = jointAngle(hand[2], hand[3], hand[4]) >= config.thumbAngle &&
-            hand[4].distance(hand[5]) >= palmWidth * config.thumbReachRatio
+        val thumbReaches = hand[4].distance(hand[5]) >= palmWidth * config.thumbReachRatio
+        val thumbExtended = jointAngle(hand[2], hand[3], hand[4]) >= config.thumbAngle && thumbReaches
         if (extended.all { it } && thumbExtended) return Gesture.OPEN_PALM
         if (folded.all { it }) {
-            if (!thumbExtended) return Gesture.CLOSED_FIST
-            // Up/down are relative to the upright display. Horizontal thumbs stay UNKNOWN.
+            // Up/down are relative to the upright display and require a vertical thumb.
             val thumb = hand[4] - hand[2]
             val projectedLength = hypot(thumb.x, thumb.y)
-            if (projectedLength > palmWidth * 0.4f &&
-                abs(thumb.y) / projectedLength >= config.verticalThumbRatio
+            // A thumb bent toward/away from the camera need not have a straight IP joint.
+            // Require its tip to visibly clear ALL four curled fingers instead. A tucked
+            // fist can also have a vertical thumb vector, so direction alone is unsafe.
+            val fingers = hand.subList(5, 21)
+            val clearance = if (thumb.y < 0f) {
+                fingers.minOf { it.y } - hand[4].y
+            } else {
+                hand[4].y - fingers.maxOf { it.y }
+            }
+            if (thumbReaches && projectedLength > palmWidth * 0.4f &&
+                abs(thumb.y) / projectedLength >= config.verticalThumbRatio &&
+                clearance > palmWidth * config.thumbClearanceRatio
             ) {
                 return if (thumb.y < 0f) Gesture.THUMBS_UP else Gesture.THUMBS_DOWN
             }
+            if (!thumbExtended) return Gesture.CLOSED_FIST
         }
         return Gesture.UNKNOWN
     }

@@ -96,7 +96,8 @@ See the [official ADB guide](https://developer.android.com/tools/adb).
 
 Show **one whole hand at 60–90 cm** in good, even light. Face the palm toward the
 camera for the open palm and fist. For thumbs, curl the four fingers and point the
-extended thumb vertically toward the top/bottom of the display. Sideways thumbs,
+thumb vertically toward the top/bottom of the display, with its tip visibly beyond
+the curled fingers. A slight bend toward/away from the camera is supported. Sideways thumbs,
 partial hands, and other poses should remain unrecognised. Both hands are supported
 individually; only one is tracked at a time.
 
@@ -153,8 +154,8 @@ there is no floating system-wide volume overlay.
 ## Implementation and verification limits
 
 Verified on macOS ARM64 with the local Conda JDK: Milestone 2A debug APK compilation,
-51 unit tests in each of the debug and release configurations (23 existing recognition
-tests and 28 volume tests), and Android lint with zero
+59 unit tests in each of the debug and release configurations (31 recognition tests
+and 28 volume tests), and Android lint with zero
 issues. APK signature, ZIP alignment, bundled-model checksum, and absence of network
 permissions were checked.
 
@@ -181,13 +182,32 @@ a sustained performance or accuracy benchmark.
   mirroring. Frames are not mirrored before classification. Diagnostics and lifecycle
   orchestration live in `MainActivity`.
 
-Automated tests use synthetic landmarks and deterministic timestamps. They cover
+Automated tests use synthetic landmarks, captured T20 hand-pose regression fixtures,
+and deterministic timestamps. They cover
 the four rules, scale/mirroring, modest noise, ambiguous/invalid input, aspect ratio,
 tracking loss, hold/cooldown, and smoothing. **They do not measure real-world accuracy.**
 The user has subsequently confirmed Milestone 1 successfully tested on the T20.
-Milestone 2A's real AudioManager integration, routing, and gesture-driven volume
-changes have **not yet been verified on the tablet**. The GitHub workflow also
-remains unverified remotely. Run these Milestone 2A checks after installing the new APK:
+Milestone 2A was subsequently exercised on the T20: the user reported working
+gesture volume, and device logs/screen feedback confirmed increases, decreases,
+and held repeats. Thumbs-down was less reliable. Captures identified two causes:
+tucked index/middle fingers can have straight middle joints but bent fingertip joints,
+and the straight-thumb angle check rejected a thumb bent toward/away from the camera.
+The user reported that the finger-curl-only change in 0.2.1 still labelled bent
+thumbs as fists. Version **0.2.2** checks both finger joints and uses visible thumb-tip
+clearance beyond all four curled fingers for directional gestures (default 0.2 palm
+widths, configurable in `RecognitionConfig.kt`). Vertical direction, projected
+length, and reach are still required. Open-palm geometry, hold timing, and volume
+safeguards are unchanged. Regression tests reproduce the old bent-thumb failure and
+cover captured fists, mirroring, scale, inversion, and synthetic bends in both depth
+directions. These samples are regression checks, not an accuracy benchmark.
+Temporary coordinate logging used for diagnosis is removed from the delivered APK.
+Version 0.2.2 installed and cold-launched successfully on the T20. In the guided
+retest, the user confirmed that bent thumbs-down improved and thumbs-up and closed
+fist stayed correctly labelled. The user also confirmed bent thumbs-down lowered
+volume with spaced repeats and stopped on release/change of pose. Device logs
+recorded increases and decreases, with an approximately 1.2-second initial repeat
+delay and 0.7-second subsequent intervals. Routing, restrictions, limits, sustained accuracy,
+and the GitHub workflow are not yet comprehensively verified. Complete these checks:
 
 1. Start at a comfortable mid-range media volume. If desired, play familiar media
    in another app that supports background playback, then return to GestureOS.
