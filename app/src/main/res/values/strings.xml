@@ -1,0 +1,42 @@
+<resources>
+    <string name="app_name">GestureOS</string>
+    <string name="subtitle">HAND TRACKING · MILESTONE 1</string>
+    <string name="instructions">Show one hand, 60–90 cm from the front camera. Try an open palm, a closed fist, or a vertical thumbs-up / thumbs-down. Hold each pose until confirmed.</string>
+    <string name="privacy">Camera frames stay on this tablet. Tracking stops when you leave this screen.</string>
+    <string name="start">Start camera</string>
+    <string name="stop">Stop camera</string>
+    <string name="settings">Tune recognition</string>
+    <string name="app_settings">App permissions</string>
+    <string name="camera_off">Camera stopped</string>
+    <string name="starting">Starting front camera…</string>
+    <string name="camera_live">Front camera · live</string>
+    <string name="camera_waiting">Waiting for front camera…</string>
+    <string name="permission_needed">Camera permission is needed for local hand tracking. Tap Start camera to allow it.</string>
+    <string name="permission_denied">Camera permission denied. Try Start camera again, or allow Camera under App permissions if Android no longer asks.</string>
+    <string name="camera_error">Camera or tracking unavailable: %1$s. Check Camera access in Android Quick Settings, close other camera apps, then tap Start camera to retry.</string>
+    <string name="tracking_stalled">No recent tracking frames. Check camera privacy and other camera apps, or stop and restart.</string>
+    <string name="gesture_no_hand">No hand</string>
+    <string name="gesture_unknown">Unrecognised pose</string>
+    <string name="gesture_open_palm">Open palm</string>
+    <string name="gesture_closed_fist">Closed fist</string>
+    <string name="gesture_thumbs_up">Thumbs-up</string>
+    <string name="gesture_thumbs_down">Thumbs-down</string>
+    <string name="state_no_hand">SEARCHING · show one hand</string>
+    <string name="state_unknown">UNRECOGNISED · keep the whole hand visible</string>
+    <string name="state_holding">HOLDING · %1$d%% of hold duration</string>
+    <string name="state_confirmed">CONFIRMED · in-app feedback only</string>
+    <string name="state_cooldown">COOLDOWN · keep holding</string>
+    <string name="raw_gesture">Raw detection: %1$s</string>
+    <string name="diagnostics_idle">Waiting for frames. No gesture confidence score is used.</string>
+    <string name="diagnostics">%1$.1f processed FPS · %2$.1f ms inference · %3$.1f ms pipeline\nInput: %4$d × %5$d · hands: %6$d · CPU · cap: %7$d FPS\nThrottle skips: %8$d · hold: %9$d ms · cooldown: %10$d ms · smoothing: %11$.2f</string>
+    <string name="tuning_title">Recognition tuning</string>
+    <string name="tuning_help">Changes restart tracking. These are geometric thresholds, not gesture confidence scores.</string>
+    <string name="hold_label">Hold duration (100–2000 ms)</string>
+    <string name="cooldown_label">Cooldown (0–3000 ms)</string>
+    <string name="smoothing_label">Smoothing alpha (0.1–1.0; 1 = off)</string>
+    <string name="fps_label">Inference cap (5–30 FPS)</string>
+    <string name="angle_label">Straight finger angle (140–175°)</string>
+    <string name="invalid_settings">Enter values within the displayed ranges.</string>
+    <string name="apply">Apply</string>
+    <string name="reset_defaults">Reset defaults</string>
+</resources>

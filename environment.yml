@@ -1,0 +1,5 @@
+name: gestureos
+channels:
+  - conda-forge
+dependencies:
+  - openjdk=17.0.18

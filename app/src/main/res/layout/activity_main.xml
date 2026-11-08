@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="16dp">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/app_name" android:textSize="28sp" android:textStyle="bold" android:textColor="#F1F7F6" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/subtitle" android:textSize="12sp" android:textColor="#75E4BD" android:layout_marginBottom="8dp" />
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:background="#050A0D">
+        <androidx.camera.view.PreviewView android:id="@+id/preview"
+            android:layout_width="match_parent" android:layout_height="match_parent" />
+        <dev.gestureos.ui.LandmarkOverlay android:id="@+id/overlay"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:importantForAccessibility="no" />
+    </FrameLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:fillViewport="true">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:paddingTop="8dp">
+            <TextView android:id="@+id/cameraStatus" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="@string/camera_off" android:textColor="#B4C5CF" android:textSize="13sp" />
+            <TextView android:id="@+id/gesture" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/gesture_no_hand" android:textColor="#75E4BD" android:textSize="30sp" android:textStyle="bold" />
+            <TextView android:id="@+id/recognitionState" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/state_no_hand" android:textColor="#F1F7F6" android:textSize="14sp" />
+            <ProgressBar android:id="@+id/holdProgress" style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="8dp" android:max="100" />
+            <TextView android:id="@+id/rawGesture" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textColor="#B4C5CF" android:textSize="12sp" />
+            <TextView android:id="@+id/diagnostics" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/diagnostics_idle" android:textColor="#B4C5CF" android:textSize="12sp"
+                android:fontFamily="monospace" android:layout_marginTop="4dp" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" style="?android:attr/buttonBarStyle">
+                <Button android:id="@+id/toggleCamera" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:text="@string/start" />
+                <Button android:id="@+id/tune" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:text="@string/settings" />
+                <Button android:id="@+id/appSettings" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:text="@string/app_settings" />
+            </LinearLayout>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/instructions" android:textColor="#F1F7F6" android:textSize="13sp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/privacy" android:textColor="#B4C5CF" android:textSize="11sp" android:layout_marginTop="4dp" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -1,0 +1,267 @@
+package dev.gestureos
+
+import android.Manifest
+import android.app.AlertDialog
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.hardware.display.DisplayManager
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.provider.Settings
+import android.text.InputType
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.view.PreviewView
+import androidx.camera.view.TransformExperimental
+import androidx.camera.view.transform.CoordinateTransform
+import androidx.core.content.ContextCompat
+import androidx.core.content.edit
+import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
+import dev.gestureos.camera.CameraSession
+import dev.gestureos.camera.TrackingFrame
+import dev.gestureos.databinding.ActivityMainBinding
+import dev.gestureos.recognition.Gesture
+import dev.gestureos.recognition.RecognitionConfig
+import dev.gestureos.recognition.RecognitionState
+
+@androidx.annotation.OptIn(TransformExperimental::class)
+class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
+    private lateinit var binding: ActivityMainBinding
+    private var session: CameraSession? = null
+    private var resumed = false
+    private var wantsCamera = true
+    private var config = RecognitionConfig()
+    private var lastFrameAt = 0L
+    private var displayRotation = -1
+    private val handler = Handler(Looper.getMainLooper())
+    private val preferences by lazy { getSharedPreferences("recognition", MODE_PRIVATE) }
+    private val displays by lazy { getSystemService(DisplayManager::class.java) }
+    private val permissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted && wantsCamera) startCamera()
+        else binding.cameraStatus.setText(R.string.permission_denied)
+    }
+    private val watchdog = object : Runnable {
+        override fun run() {
+            if (session == null || !resumed) return
+            if (SystemClock.uptimeMillis() - lastFrameAt > 2000) {
+                clearTracking()
+                binding.cameraStatus.setText(R.string.tracking_stalled)
+            }
+            handler.postDelayed(this, 500)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        config = loadConfig()
+        wantsCamera = savedInstanceState?.getBoolean("wantsCamera") ?: true
+        binding.preview.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        binding.preview.scaleType = PreviewView.ScaleType.FIT_CENTER
+        val padding = (16 * resources.displayMetrics.density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            view.setPadding(padding + bars.left, padding + bars.top, padding + bars.right, padding + bars.bottom)
+            insets
+        }
+        binding.toggleCamera.setOnClickListener {
+            if (session != null) {
+                wantsCamera = false
+                stopCamera()
+            } else {
+                wantsCamera = true
+                if (hasCameraPermission()) startCamera() else permissionRequest.launch(Manifest.permission.CAMERA)
+            }
+        }
+        binding.appSettings.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$packageName".toUri()))
+        }
+        binding.tune.setOnClickListener { showTuning() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        resumed = true
+        displays.registerDisplayListener(this, handler)
+        if (wantsCamera && hasCameraPermission()) startCamera()
+        else if (!hasCameraPermission()) binding.cameraStatus.setText(R.string.permission_needed)
+    }
+
+    override fun onPause() {
+        resumed = false
+        displays.unregisterDisplayListener(this)
+        stopCamera()
+        super.onPause()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("wantsCamera", wantsCamera)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun hasCameraPermission() = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+
+    private fun startCamera() {
+        if (!resumed || !wantsCamera || session != null || !hasCameraPermission()) return
+        binding.preview.doOnLayout {
+            if (!resumed || !wantsCamera || session != null || !hasCameraPermission()) return@doOnLayout
+            displayRotation = binding.preview.display.rotation
+            clearTracking()
+            binding.cameraStatus.setText(R.string.starting)
+            binding.toggleCamera.setText(R.string.stop)
+            binding.preview.keepScreenOn = true
+            lastFrameAt = SystemClock.uptimeMillis()
+            session = CameraSession(this, this, binding.preview, config,
+                onFrame = ::showFrame,
+                onReady = { binding.cameraStatus.setText(R.string.camera_waiting) },
+                onError = { message ->
+                    stopCamera()
+                    binding.cameraStatus.text = getString(R.string.camera_error, message)
+                },
+            ).also { it.start() }
+            handler.postDelayed(watchdog, 500)
+        }
+    }
+
+    private fun stopCamera() {
+        handler.removeCallbacks(watchdog)
+        session?.close()
+        session = null
+        binding.preview.keepScreenOn = false
+        binding.toggleCamera.setText(R.string.start)
+        binding.cameraStatus.setText(R.string.camera_off)
+        clearTracking()
+    }
+
+    private fun clearTracking() {
+        binding.overlay.clear()
+        binding.gesture.setText(R.string.gesture_no_hand)
+        binding.recognitionState.setText(R.string.state_no_hand)
+        binding.rawGesture.text = getString(R.string.raw_gesture, gestureName(Gesture.NO_HAND))
+        binding.diagnostics.setText(R.string.diagnostics_idle)
+        binding.holdProgress.progress = 0
+    }
+
+    private fun showFrame(frame: TrackingFrame) {
+        lastFrameAt = SystemClock.uptimeMillis()
+        binding.cameraStatus.setText(R.string.camera_live)
+        val target = binding.preview.outputTransform
+        if (target != null && frame.landmarks.size == 21 && frame.landmarks.all { it.isFinite() }) {
+            val points = FloatArray(42) { index ->
+                val landmark = frame.landmarks[index / 2]
+                if (index % 2 == 0) landmark.x * frame.width else landmark.y * frame.height
+            }
+            CoordinateTransform(frame.sourceTransform, target).mapPoints(points)
+            binding.overlay.show(points)
+        } else binding.overlay.clear()
+        val recognition = frame.recognition
+        binding.gesture.text = gestureName(recognition.gesture)
+        binding.recognitionState.text = when (recognition.state) {
+            RecognitionState.NO_HAND -> getString(R.string.state_no_hand)
+            RecognitionState.UNRECOGNIZED -> getString(R.string.state_unknown)
+            RecognitionState.HOLDING -> getString(R.string.state_holding, (recognition.holdProgress * 100).toInt())
+            RecognitionState.CONFIRMED -> getString(R.string.state_confirmed)
+            RecognitionState.COOLDOWN -> getString(R.string.state_cooldown)
+        }
+        binding.holdProgress.progress = (recognition.holdProgress * 100).toInt()
+        binding.rawGesture.text = getString(R.string.raw_gesture, gestureName(frame.rawGesture))
+        binding.diagnostics.text = getString(R.string.diagnostics, frame.processedFps, frame.inferenceMs,
+            frame.pipelineMs, frame.width, frame.height, if (frame.landmarks.isEmpty()) 0 else 1,
+            config.maxFps, frame.throttleSkips, config.holdMs, config.cooldownMs, config.smoothingAlpha)
+    }
+
+    private fun gestureName(gesture: Gesture) = getString(when (gesture) {
+        Gesture.NO_HAND -> R.string.gesture_no_hand
+        Gesture.UNKNOWN -> R.string.gesture_unknown
+        Gesture.OPEN_PALM -> R.string.gesture_open_palm
+        Gesture.CLOSED_FIST -> R.string.gesture_closed_fist
+        Gesture.THUMBS_UP -> R.string.gesture_thumbs_up
+        Gesture.THUMBS_DOWN -> R.string.gesture_thumbs_down
+    })
+
+    private fun loadConfig() = runCatching {
+        RecognitionConfig(
+            holdMs = preferences.getLong("holdMs", 400),
+            cooldownMs = preferences.getLong("cooldownMs", 600),
+            smoothingAlpha = preferences.getFloat("alpha", 0.65f),
+            maxFps = preferences.getInt("fps", 12),
+            extendedAngle = preferences.getFloat("angle", 155f),
+        )
+    }.getOrDefault(RecognitionConfig())
+
+    private fun applyConfig(updated: RecognitionConfig) {
+        config = updated
+        preferences.edit {
+            putLong("holdMs", config.holdMs)
+            putLong("cooldownMs", config.cooldownMs)
+            putFloat("alpha", config.smoothingAlpha)
+            putInt("fps", config.maxFps)
+            putFloat("angle", config.extendedAngle)
+        }
+        stopCamera()
+        if (wantsCamera) startCamera()
+    }
+
+    private fun showTuning() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val padding = (24 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding / 2, padding, padding / 2)
+            addView(TextView(context).apply { setText(R.string.tuning_help) })
+        }
+        fun field(label: Int, value: String): EditText {
+            val input = EditText(this).apply {
+                id = android.view.View.generateViewId()
+                inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+                setSingleLine()
+                setText(value)
+                contentDescription = getString(label)
+            }
+            content.addView(TextView(this).apply { setText(label); labelFor = input.id })
+            content.addView(input)
+            return input
+        }
+        val hold = field(R.string.hold_label, config.holdMs.toString())
+        val cooldown = field(R.string.cooldown_label, config.cooldownMs.toString())
+        val alpha = field(R.string.smoothing_label, config.smoothingAlpha.toString())
+        val fps = field(R.string.fps_label, config.maxFps.toString())
+        val angle = field(R.string.angle_label, config.extendedAngle.toString())
+        val dialog = AlertDialog.Builder(this).setTitle(R.string.tuning_title)
+            .setView(ScrollView(this).apply { addView(content) })
+            .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.reset_defaults) { _, _ -> applyConfig(RecognitionConfig()) }
+            .setPositiveButton(R.string.apply, null).create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val updated = runCatching {
+                    config.copy(holdMs = hold.text.toString().toLong(), cooldownMs = cooldown.text.toString().toLong(),
+                        smoothingAlpha = alpha.text.toString().replace(',', '.').toFloat(), maxFps = fps.text.toString().toInt(),
+                        extendedAngle = angle.text.toString().replace(',', '.').toFloat())
+                }.getOrNull()
+                if (updated == null) hold.error = getString(R.string.invalid_settings)
+                else { applyConfig(updated); dialog.dismiss() }
+            }
+        }
+        dialog.show()
+    }
+
+    override fun onDisplayAdded(displayId: Int) = Unit
+    override fun onDisplayRemoved(displayId: Int) = Unit
+    override fun onDisplayChanged(displayId: Int) {
+        val display = binding.preview.display ?: return
+        if (session != null && display.displayId == displayId && display.rotation != displayRotation) {
+            stopCamera()
+            startCamera()
+        }
+    }
+}

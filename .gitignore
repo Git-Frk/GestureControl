@@ -1,0 +1,20 @@
+# Local toolchain, IDE files and generated outputs
+.tools/
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+.android/
+*.apk
+*.aab
+*.jks
+*.keystore
+*.log
+*.hprof
+.env
+.env.*
+# Supplied input, deliberately excluded from the application repository.
+GestureOS_Codex_Project_Brief.md
