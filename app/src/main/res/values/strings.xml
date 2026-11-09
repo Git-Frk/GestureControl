@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">GestureOS</string>
-    <string name="subtitle">GESTURE MEDIA VOLUME · MILESTONE 2A</string>
+    <string name="subtitle">CURSOR + PINCH SELECTION · MILESTONE 2B</string>
     <string name="instructions">Show one hand, 60–90 cm from the front camera. Try an open palm, a closed fist, or a vertical thumbs-up / thumbs-down. Hold each pose until confirmed.</string>
     <string name="privacy">Camera frames stay on this tablet. Tracking stops when you leave this screen.</string>
     <string name="start">Start camera</string>
@@ -30,7 +30,7 @@
     <string name="diagnostics_idle">Waiting for frames. No gesture confidence score is used.</string>
     <string name="diagnostics">%1$.1f processed FPS · %2$.1f ms inference · %3$.1f ms pipeline\nInput: %4$d × %5$d · hands: %6$d · CPU · cap: %7$d FPS\nThrottle skips: %8$d · hold: %9$d ms · cooldown: %10$d ms · smoothing: %11$.2f</string>
     <string name="tuning_title">Recognition and volume tuning</string>
-    <string name="tuning_help">Changes restart tracking. Volume gestures are switched off while tuning. Recognition thresholds are geometric rules, not confidence scores.</string>
+    <string name="tuning_help">Changes restart tracking. Cursor and volume gestures are switched off while tuning. Recognition thresholds are geometric rules, not confidence scores.</string>
     <string name="hold_label">Hold duration (100–2000 ms)</string>
     <string name="cooldown_label">Cooldown (0–3000 ms)</string>
     <string name="smoothing_label">Smoothing alpha (0.1–1.0; 1 = off)</string>
@@ -59,4 +59,35 @@
     <string name="volume_repeat_enabled">Repeat adjustments while held</string>
     <string name="volume_delay_label">First repeat delay (600–5000 ms)</string>
     <string name="volume_interval_label">Repeat interval (400–3000 ms)</string>
+    <string name="cursor_enable">Enable in-app cursor</string>
+    <string name="cursor_tune">Tune cursor</string>
+    <string name="cursor_target">Target %1$d</string>
+    <string name="cursor_selected">Selected target %1$d · total selections: %2$d. Release and point before another pinch.</string>
+    <string name="cursor_missed">Pinch confirmed between targets. Point at a target and try again.</string>
+    <string name="cursor_help">Point with the index finger; curl the others. Move within the preview rectangle, then touch thumb to index and hold briefly to select a target.</string>
+    <string name="cursor_off">Cursor off. Cursor mode and volume mode are mutually exclusive.</string>
+    <string name="cursor_ready">Show a released pointing pose to arm the cursor. Selections affect only the six targets.</string>
+    <string name="cursor_status">%1$s · %2$s · %5$s\nPinch distance: %3$s · confirmation: %4$d%%</string>
+    <string name="cursor_position">x %1$.0f%% / y %2$.0f%%</string>
+    <string name="cursor_hidden">cursor hidden</string>
+    <string name="cursor_ratio">%1$.2f palm widths</string>
+    <string name="cursor_armed">click armed</string>
+    <string name="cursor_not_armed">point / release to arm</string>
+    <string name="cursor_latency">Analysis → cursor draw: %1$d ms · mean %2$.0f ms (last 30). Excludes sensor exposure and display scanout.</string>
+    <string name="cursor_latency_idle">Cursor-update latency appears while pointing (analysis start → draw).</string>
+    <string name="cursor_tuning_help">Both action modes switch off while tuning. Region edges are fractions of the visible camera image; each span must be at least 0.30. Smaller regions or higher sensitivity reduce required hand travel. Pinch release must exceed entry by at least 0.10. Re-enable the cursor afterward.</string>
+    <string name="cursor_sensitivity_label">Pointer sensitivity (0.5–2.0)</string>
+    <string name="cursor_smoothing_label">Pointer smoothing time (0–300 ms; 0 = off)</string>
+    <string name="cursor_dead_zone_label">Pointer dead zone (0–0.03 of target area)</string>
+    <string name="cursor_left_label">Active region left (0–0.7)</string>
+    <string name="cursor_top_label">Active region top (0–0.7)</string>
+    <string name="cursor_right_label">Active region right (0.3–1)</string>
+    <string name="cursor_bottom_label">Active region bottom (0.3–1)</string>
+    <string name="cursor_entry_label">Pinch entry (0.10–0.50 palm widths)</string>
+    <string name="cursor_release_label">Pinch release (0.20–0.80 palm widths)</string>
+    <string name="cursor_arm_label">Pointing arm duration (100–1000 ms)</string>
+    <string name="cursor_debounce_label">Pinch debounce (40–500 ms)</string>
+    <string name="cursor_confirm_label">Additional pinch confirmation (100–1000 ms)</string>
+    <string name="cursor_release_ms_label">Release debounce (80–500 ms)</string>
+    <string name="cursor_cooldown_label">Click cooldown (200–1500 ms)</string>
 </resources>

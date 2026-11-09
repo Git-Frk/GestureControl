@@ -22,7 +22,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.camera.view.TransformExperimental
-import androidx.camera.view.transform.CoordinateTransform
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
@@ -35,6 +34,8 @@ import dev.gestureos.databinding.ActivityMainBinding
 import dev.gestureos.recognition.Gesture
 import dev.gestureos.recognition.RecognitionConfig
 import dev.gestureos.recognition.RecognitionState
+import dev.gestureos.ui.CursorUiController
+import dev.gestureos.ui.PreviewProjection
 import dev.gestureos.volume.AndroidMediaVolumeDevice
 import dev.gestureos.volume.MediaVolumeController
 import dev.gestureos.volume.VolumeControlConfig
@@ -52,6 +53,7 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
     private var config = RecognitionConfig()
     private var volumeConfig = VolumeControlConfig()
     private lateinit var volumeController: MediaVolumeController
+    private lateinit var cursorUi: CursorUiController
     private val volumeDevice by lazy { AndroidMediaVolumeDevice(this) }
     private var lastFrameAt = 0L
     private var displayRotation = -1
@@ -72,11 +74,12 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
     private val watchdog = object : Runnable {
         override fun run() {
             if (session == null || !resumed) return
+            cursorUi.expire(SystemClock.uptimeMillis())
             if (SystemClock.uptimeMillis() - lastFrameAt > 2000) {
                 clearTracking()
                 binding.cameraStatus.setText(R.string.tracking_stalled)
             }
-            handler.postDelayed(this, 500)
+            handler.postDelayed(this, 100)
         }
     }
 
@@ -87,6 +90,7 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
         config = loadConfig()
         volumeConfig = loadVolumeConfig()
         volumeController = MediaVolumeController(volumeDevice, volumeConfig)
+        cursorUi = CursorUiController(this, binding, ::disarmVolume)
         volumeControlStream = AudioManager.STREAM_MUSIC
         wantsCamera = savedInstanceState?.getBoolean("wantsCamera") ?: true
         binding.preview.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
@@ -113,6 +117,7 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
         binding.volumeEnabled.isChecked = false
         binding.volumeEnabled.isEnabled = false
         binding.volumeEnabled.setOnCheckedChangeListener { _, enabled ->
+            if (enabled) cursorUi.disable()
             volumeController.setEnabled(enabled, SystemClock.uptimeMillis())
             binding.volumeAction.setText(if (enabled) R.string.volume_ready else R.string.volume_disabled)
         }
@@ -157,6 +162,7 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
                 onReady = {
                     binding.cameraStatus.setText(R.string.camera_waiting)
                     binding.volumeEnabled.isEnabled = true
+                    cursorUi.cameraReady(config)
                 },
                 onError = { message ->
                     stopCamera()
@@ -168,6 +174,7 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
     }
 
     private fun stopCamera() {
+        cursorUi.cameraStopped()
         disarmVolume()
         binding.volumeEnabled.isEnabled = false
         handler.removeCallbacks(watchdog)
@@ -180,6 +187,7 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
     }
 
     private fun clearTracking() {
+        cursorUi.resetTracking()
         volumeController.cancelHold()
         binding.overlay.clear()
         binding.gesture.setText(R.string.gesture_no_hand)
@@ -192,15 +200,11 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
     private fun showFrame(frame: TrackingFrame) {
         lastFrameAt = SystemClock.uptimeMillis()
         binding.cameraStatus.setText(R.string.camera_live)
-        val target = binding.preview.outputTransform
-        if (target != null && frame.landmarks.size == 21 && frame.landmarks.all { it.isFinite() }) {
-            val points = FloatArray(42) { index ->
-                val landmark = frame.landmarks[index / 2]
-                if (index % 2 == 0) landmark.x * frame.width else landmark.y * frame.height
-            }
-            CoordinateTransform(frame.sourceTransform, target).mapPoints(points)
-            binding.overlay.show(points)
+        val projection = PreviewProjection.from(frame, binding.preview)
+        if (projection != null && frame.landmarks.size == 21 && frame.landmarks.all { it.isFinite() }) {
+            binding.overlay.show(projection.landmarks(frame))
         } else binding.overlay.clear()
+        cursorUi.onFrame(frame, projection)
         val recognition = frame.recognition
         binding.gesture.text = gestureName(recognition.gesture)
         binding.recognitionState.text = when (recognition.state) {
@@ -306,6 +310,7 @@ class MainActivity : ComponentActivity(), DisplayManager.DisplayListener {
     }
 
     private fun showTuning() {
+        cursorUi.disable()
         disarmVolume()
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL

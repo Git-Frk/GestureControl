@@ -6,19 +6,40 @@
         android:text="@string/app_name" android:textSize="28sp" android:textStyle="bold" android:textColor="#F1F7F6" />
     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
         android:text="@string/subtitle" android:textSize="12sp" android:textColor="#75E4BD" android:layout_marginBottom="8dp" />
-    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp"
-        android:layout_weight="1" android:background="#050A0D">
+    <GridLayout android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:columnCount="2" android:rowCount="1">
+    <FrameLayout android:layout_width="0dp" android:layout_height="match_parent"
+        android:layout_columnWeight="1" android:layout_gravity="fill" android:background="#050A0D">
         <androidx.camera.view.PreviewView android:id="@+id/preview"
             android:layout_width="match_parent" android:layout_height="match_parent" />
         <dev.gestureos.ui.LandmarkOverlay android:id="@+id/overlay"
             android:layout_width="match_parent" android:layout_height="match_parent"
             android:importantForAccessibility="no" />
     </FrameLayout>
+    <dev.gestureos.ui.CursorTestArea android:id="@+id/cursorArea"
+        android:layout_width="0dp" android:layout_height="match_parent" android:layout_columnWeight="1" android:layout_gravity="fill"
+        android:layout_marginStart="8dp" android:background="#0C1920" />
+    </GridLayout>
     <!-- Stable preview bounds: changing feedback text must not resize the camera viewport. -->
     <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1" android:fillViewport="true">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical" android:paddingTop="8dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical">
+                <Switch android:id="@+id/cursorEnabled" android:layout_width="0dp" android:layout_weight="1"
+                    android:layout_height="wrap_content" android:minHeight="48dp" android:saveEnabled="false"
+                    android:text="@string/cursor_enable" android:textColor="#F1F7F6" />
+                <Button android:id="@+id/cursorTune" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="@string/cursor_tune" />
+            </LinearLayout>
+            <TextView android:id="@+id/cursorStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:minLines="2" android:text="@string/cursor_off" android:textColor="#75E4BD" android:textSize="14sp" />
+            <TextView android:id="@+id/cursorFeedback" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/cursor_help" android:textColor="#F1F7F6" android:textSize="13sp"
+                android:accessibilityLiveRegion="polite" />
+            <TextView android:id="@+id/cursorLatency" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/cursor_latency_idle" android:textColor="#B4C5CF" android:textSize="12sp" />
             <TextView android:id="@+id/cameraStatus" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:text="@string/camera_off" android:textColor="#B4C5CF" android:textSize="13sp" />
             <TextView android:id="@+id/gesture" android:layout_width="match_parent" android:layout_height="wrap_content"
