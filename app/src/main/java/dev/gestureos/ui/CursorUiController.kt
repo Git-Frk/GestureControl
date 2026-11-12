@@ -13,6 +13,7 @@ import androidx.camera.view.TransformExperimental
 import androidx.core.content.edit
 import dev.gestureos.R
 import dev.gestureos.camera.TrackingFrame
+import dev.gestureos.cursor.CursorSettings
 import dev.gestureos.cursor.CursorConfig
 import dev.gestureos.cursor.CursorMapper
 import dev.gestureos.cursor.CursorPoint
@@ -31,14 +32,16 @@ import dev.gestureos.recognition.isotropicLandmarks
 class CursorUiController(
     private val activity: Activity,
     private val binding: ActivityMainBinding,
-    private val disarmVolume: () -> Unit,
+    private val onModeRequested: (Boolean) -> Unit,
+    private val onTuning: () -> Unit,
 ) {
     private val preferences = activity.getSharedPreferences("cursor", Activity.MODE_PRIVATE)
-    private var config = loadConfig()
+    private var config = CursorSettings.load(activity)
     private var machine = CursorStateMachine(config)
     private var mapper = CursorMapper(config)
     private var detector = CursorPoseDetector()
     private var enabled = false
+    private var renderingEnabled = false
     private var enabledAt = 0L
     private val latencies = ArrayDeque<Long>()
     private var lastState: String? = null
@@ -47,10 +50,7 @@ class CursorUiController(
         binding.cursorEnabled.isChecked = false
         binding.cursorEnabled.isEnabled = false
         binding.cursorEnabled.setOnCheckedChangeListener { _, value ->
-            enabled = value
-            enabledAt = SystemClock.uptimeMillis()
-            if (value) disarmVolume()
-            resetTracking()
+            if (!renderingEnabled) onModeRequested(value)
         }
         binding.cursorTune.setOnClickListener { showTuning() }
         binding.cursorArea.onGeometryChanged = { resetTracking() }
@@ -72,10 +72,19 @@ class CursorUiController(
         binding.cursorEnabled.isEnabled = true
     }
 
-    fun disable() {
-        enabled = false
-        binding.cursorEnabled.isChecked = false
+    fun setEnabled(value: Boolean) {
+        renderingEnabled = true
+        binding.cursorEnabled.isChecked = value
+        renderingEnabled = false
+        if (enabled == value) return
+        enabled = value
+        enabledAt = SystemClock.uptimeMillis()
         resetTracking()
+    }
+
+    fun disable() {
+        onModeRequested(false)
+        setEnabled(false)
     }
 
     fun cameraStopped() { disable(); binding.cursorEnabled.isEnabled = false }
@@ -129,18 +138,6 @@ class CursorUiController(
         }
     }
 
-    private fun loadConfig() = runCatching {
-        CursorConfig(sensitivity = preferences.getFloat("sensitivity", 1f), smoothingMs = preferences.getFloat("smoothing", 85f),
-            deadZone = preferences.getFloat("deadZone", 0.004f),
-            region = CursorRect(preferences.getFloat("left", 0.15f), preferences.getFloat("top", 0.15f),
-                preferences.getFloat("right", 0.85f), preferences.getFloat("bottom", 0.85f)),
-            pinchEntry = preferences.getFloat("entry", CursorConfig().pinchEntry),
-            pinchRelease = preferences.getFloat("release", CursorConfig().pinchRelease),
-            pointArmMs = preferences.getLong("arm", 200), pinchDebounceMs = preferences.getLong("debounce", 80),
-            pinchConfirmMs = preferences.getLong("confirm", 200), releaseMs = preferences.getLong("releaseMs", 150),
-            clickCooldownMs = preferences.getLong("cooldown", 450))
-    }.getOrDefault(CursorConfig())
-
     private fun applyConfig(updated: CursorConfig) {
         config = updated
         machine = CursorStateMachine(config)
@@ -158,7 +155,7 @@ class CursorUiController(
 
     private fun showTuning() {
         disable()
-        disarmVolume()
+        onTuning()
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             val padding = (20 * resources.displayMetrics.density).toInt()

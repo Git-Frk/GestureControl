@@ -15,8 +15,8 @@ android {
         applicationId = "dev.gestureos"
         minSdk = 33
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.3.2"
+        versionCode = 12
+        versionName = "0.6.2"
         // Target the tablet's ARM variants; this MediaPipe version has no x86_64 native binary.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }

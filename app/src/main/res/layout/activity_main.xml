@@ -6,6 +6,21 @@
         android:text="@string/app_name" android:textSize="28sp" android:textStyle="bold" android:textColor="#F1F7F6" />
     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
         android:text="@string/subtitle" android:textSize="12sp" android:textColor="#75E4BD" android:layout_marginBottom="8dp" />
+    <Switch android:id="@+id/backgroundTracking" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:minHeight="48dp" android:saveEnabled="false"
+        android:text="@string/background_enable" android:textColor="#F1F7F6" />
+    <TextView android:id="@+id/backgroundStatus" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="@string/background_help"
+        android:textColor="#B4C5CF" android:textSize="12sp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" style="?android:attr/buttonBarStyle">
+        <Button android:id="@+id/toggleCamera" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:text="@string/start" />
+        <Button android:id="@+id/tune" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:text="@string/settings" />
+        <Button android:id="@+id/appSettings" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:text="@string/app_settings" />
+    </LinearLayout>
     <GridLayout android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1" android:columnCount="2" android:rowCount="1">
     <FrameLayout android:layout_width="0dp" android:layout_height="match_parent"
@@ -25,6 +40,24 @@
         android:layout_weight="1" android:fillViewport="true">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical" android:paddingTop="8dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical">
+                <Switch android:id="@+id/systemCursorEnabled" android:layout_width="0dp" android:layout_weight="1"
+                    android:layout_height="wrap_content" android:minHeight="48dp" android:saveEnabled="false"
+                    android:text="@string/system_cursor_enable" android:textColor="#F1F7F6" />
+                <Button android:id="@+id/accessibilitySettings" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="@string/accessibility_settings" />
+            </LinearLayout>
+            <TextView android:id="@+id/systemCursorStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/system_enable_requirements" android:textColor="#75E4BD" android:textSize="12sp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/system_help" android:textColor="#B4C5CF" android:textSize="12sp" />
+            <TextView android:id="@+id/systemMotionStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/motion_help" android:textColor="#75E4BD" android:textSize="12sp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/motion_help" android:textColor="#B4C5CF" android:textSize="12sp" />
+            <Button android:id="@+id/tuneMotion" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/motion_tune" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="horizontal" android:gravity="center_vertical">
                 <Switch android:id="@+id/cursorEnabled" android:layout_width="0dp" android:layout_weight="1"
@@ -53,15 +86,6 @@
             <TextView android:id="@+id/diagnostics" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:text="@string/diagnostics_idle" android:textColor="#B4C5CF" android:textSize="12sp"
                 android:fontFamily="monospace" android:layout_marginTop="4dp" />
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" style="?android:attr/buttonBarStyle">
-                <Button android:id="@+id/toggleCamera" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:text="@string/start" />
-                <Button android:id="@+id/tune" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:text="@string/settings" />
-                <Button android:id="@+id/appSettings" style="?android:attr/buttonBarButtonStyle" android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:text="@string/app_settings" />
-            </LinearLayout>
             <Switch android:id="@+id/volumeEnabled" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:minHeight="48dp"
                 android:text="@string/volume_enable" android:textColor="#F1F7F6"

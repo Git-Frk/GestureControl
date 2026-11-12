@@ -18,3 +18,4 @@ local.properties
 .env.*
 # Supplied input, deliberately excluded from the application repository.
 GestureOS_Codex_Project_Brief.md
+git_readme.md

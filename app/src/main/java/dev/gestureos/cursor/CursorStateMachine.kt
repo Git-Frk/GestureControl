@@ -33,6 +33,9 @@ class CursorStateMachine(private val config: CursorConfig = CursorConfig()) {
         return cancel(CursorState.IDLE)
     }
 
+    /** Switch interaction ownership without shortening the configured click cooldown. */
+    fun suspendInteraction(): CursorResult = cancel(CursorState.IDLE)
+
     private fun cancel(state: CursorState, ratio: Float? = null): CursorResult {
         filter.reset()
         pointingSince = null
