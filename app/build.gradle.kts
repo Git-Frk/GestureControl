@@ -27,15 +27,17 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { viewBinding = true; buildConfig = true }
     androidResources { noCompress += "task" }
+
     lint {
         warningsAsErrors = true
         abortOnError = true
-        // Versions are deliberately pinned to this API-35/JDK-17 toolchain, not latest releases.
+
+        // This prototype deliberately targets API 35.
+        // Revisit when upgrading the Android target.
+        disable += "OldTargetApi"
+
         disable += "GradleDependency"
-        // Milestone 1 targets the Nokia T20's ARM hardware; ChromeOS is outside this project scope.
         disable += "ChromeOsAbiSupport"
-    }
-    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/modelAssets"))
 }
 
 // The model is fetched at BUILD time, verified, and bundled in the APK. No runtime network.
