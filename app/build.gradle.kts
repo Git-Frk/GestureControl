@@ -27,7 +27,6 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { viewBinding = true; buildConfig = true }
     androidResources { noCompress += "task" }
-
     lint {
         warningsAsErrors = true
         abortOnError = true
@@ -38,6 +37,8 @@ android {
 
         disable += "GradleDependency"
         disable += "ChromeOsAbiSupport"
+    }
+    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/modelAssets"))
 }
 
 // The model is fetched at BUILD time, verified, and bundled in the APK. No runtime network.
